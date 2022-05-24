@@ -129,8 +129,6 @@ void *spp_writer(void *p_data)
         uint16_t diff = diff_seconds*1000000 + diff_usec;
         while(len_buf_spp > 0)
         {
-            
-
             uint8_t buf[300];
             int len;
 
