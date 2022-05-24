@@ -23,7 +23,7 @@ This project is designed to run on commonly available ESP32 development board. 2
 ### Clone the project
 Run the following command:
 ```
-git clone https://github.com/hbertin1/syncESP32
+git clone https://github.com/hbertin1/esp32_sync_timecode
 ```
 ### Configure the project
 
