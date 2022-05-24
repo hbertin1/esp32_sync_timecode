@@ -25,8 +25,9 @@ Run the following command:
 ```
 git clone https://github.com/hbertin1/esp32_sync_timecode
 ```
+### Choose the project
+2 different project are available one by role. Go either in the `./Master/` project or in the `Slave` project.
 ### Configure the project
-
 ```
 idf.py menuconfig
 ```

@@ -1,0 +1,26 @@
+{
+  "C_Cpp.intelliSenseEngine": "Tag Parser",
+  "idf.port": "/dev/cu.usbserial-1130",
+  "idf.flashType": "UART",
+  "idf.adapterTargetName": "esp32",
+  "files.associations": {
+    "ltc.h": "c",
+    "esp_bt_device.h": "c",
+    "sstream": "c",
+    "regex": "c",
+    "chrono": "c",
+    "cmath": "c",
+    "string_view": "c",
+    "array": "c",
+    "string": "c",
+    "esp_vfs_fat.h": "c",
+    "*.ipp": "c",
+    "bitset": "c",
+    "deque": "c",
+    "list": "c",
+    "unordered_map": "c",
+    "unordered_set": "c",
+    "vector": "c",
+    "initializer_list": "c"
+  }
+}
