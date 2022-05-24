@@ -9,12 +9,14 @@
 #define RECV_COMP        2
 #define REQUEST_LTC_CODE 3
 
+/* struct to associate a buffer pointer to its length */
 typedef struct
 {
     uint8_t *buffer;
     int length;
 } data_received_t;
 
+/* thread to handle decoder actions */
 typedef struct
 {
     pthread_t thread;
@@ -22,15 +24,9 @@ typedef struct
     pthread_cond_t cond;
 } thread_decoder_t;
 
-typedef struct 
-{
-    struct timeval tv_startRCVTime;
-    struct timeval tv_stopRCVTime;
-} RCVTime;
-
+/* time references to compute the latency between the timeCode 
+Request and the clock synchronization */
 static thread_decoder_t thread_decoder;
-
-static RCVTime recv_time;
 
 typedef struct 
 {

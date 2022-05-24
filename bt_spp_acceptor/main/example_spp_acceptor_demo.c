@@ -190,7 +190,7 @@ int init_spp_writer(esp_spp_cb_param_t *param)
     return ret;
 }
 
-/* method to force LTC sending, might be useful to debug */
+/* method to force LTC sending, might be useful while debuging */
 void start_sendLTC()
 {
     /* inform the master device that we're about to start sending LTC */
@@ -207,13 +207,13 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     switch (event)
     {
     case ESP_SPP_INIT_EVT:
-        // Once the SPP callback has been registered, ESP_SPP_INIT_EVT is triggered. Here sets
-        // the device name and classic bluetooth scan mode, then starts the advertising.
+        /* Once the SPP callback has been registered, ESP_SPP_INIT_EVT is triggered. Here sets
+           the device name and classic bluetooth scan mode, then starts the advertising. */
         ESP_LOGI(BT_SPP_TAG, "ESP_SPP_INIT_EVT\n");
-        // Create SPP Server and start listening for an SPP connection request
-        // upgrade: think about the security setting mask (NONE for now)
-        // Slave: passive device, wait for a connection request
-        // upgrade: do we need to choose another channel ? (0 == any)
+        /* Create SPP Server and start listening for an SPP connection request
+           upgrade: think about the security setting mask (NONE for now)
+           Slave: passive device, wait for a connection request
+           upgrade: do we need to choose another channel ? (0 == any) */
         esp_spp_start_srv(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_SLAVE, 0, SPP_SERVER_NAME);
 
         /* init a thread sending SPP data */

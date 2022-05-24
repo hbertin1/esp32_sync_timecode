@@ -1,7 +1,7 @@
 | Supported Targets | ESP32 |
 | ----------------- | ----- |
 
-# ESP32 Clock synchronization using Bluetooth
+# ESP32 Clock synchronization over Bluetooth
 
 ## overview
 This is a student project for the PRO-IOT Module at ESIR (2nd year, IoT Diploma).

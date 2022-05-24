@@ -1,7 +1,7 @@
 #include <time.h>
 #include <string.h>
 #include <ltc.h>
-#include <sys/time.h>   // voir lequel sert
+#include <sys/time.h>
 #include <pthread.h>
 
 #include "timeCodeDec.h"

@@ -72,7 +72,7 @@ void set_time(SMPTETimecode stime)
 
     latency.sync_number++;
     struct timeval v_m;
-    v_m.tv_usec = (latency.sum_time.tv_usec + ((tv.tv_usec - latency.time_send_request.tv_usec)/2))/latency.sync_number;
+    v_m.tv_usec = (latency.sum_time.tv_usec + ((now.tv_usec - latency.time_send_request.tv_usec)/2))/latency.sync_number;
     v_m.tv_usec += latency.encoding_duration + latency.decoding_duration;
 
     struct timeval t_new;
@@ -86,7 +86,6 @@ void set_time(SMPTETimecode stime)
 
 void *decoder(void *p_data)
 {
-    // struct data_received_t *data = p_data;
     int apv = 1920;
     ltcsnd_sample_t sound[1024];
     size_t n;
@@ -104,9 +103,6 @@ void *decoder(void *p_data)
         ESP_LOGI(DEC_TAG, "aquire lock\n");
         pthread_cond_wait(&thread_decoder.cond, &thread_decoder.mutex);
         ESP_LOGI(DEC_TAG, "start thread\n");
-        // ESP_LOGI(DEC_TAG,"length data received = %d\n", ((data_received_t *) p_data)->length);
-        // decode(&(data_received.buffer), &(data_received.length));
-        // decode(buffer_data_received, len_buffer_data_received);
 
         do
         {
@@ -151,11 +147,9 @@ void *decoder(void *p_data)
     }
 }
 
-// int init_decoder(data_received_t * data_received, int * len_data_received)
 int init_decoder(uint8_t *buffer_data_received, int *len_buffer_data_received)
 {
     int ret;
-    // ESP_LOGI(DEC_TAG,"data length received = %d\n", data_received->length);
 
     thread_decoder.mutex = PTHREAD_MUTEX_INITIALIZER,
     thread_decoder.cond = PTHREAD_COND_INITIALIZER,
@@ -163,7 +157,6 @@ int init_decoder(uint8_t *buffer_data_received, int *len_buffer_data_received)
     pthread_mutex_init(&thread_decoder.mutex, NULL);
     pthread_cond_init(&thread_decoder.cond, NULL);
 
-    // ret = pthread_create(&thread_decoder.thread, NULL, &decoder, data_received);
     ret = pthread_create(&thread_decoder.thread, NULL, &decoder, NULL);
 
     return ret;
@@ -225,7 +218,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
         ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT status=%d scn_num=%d", param->disc_comp.status, param->disc_comp.scn_num);
         if (param->disc_comp.status == ESP_SPP_SUCCESS)
         {
-            // security mask: Maybe change to add security later
+            /* security mask: Maybe change to add security later */
             ret = esp_spp_connect(ESP_SPP_SEC_NONE, ESP_SPP_ROLE_MASTER, param->disc_comp.scn[0], peer_bd_addr);
             ESP_LOGI(SPP_TAG, "%s enable bluedroid failed: %s\n", __func__, esp_err_to_name(ret));
         }
@@ -233,8 +226,6 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
         esp_spp_write(param->srv_open.handle, SPP_DATA_LEN, spp_data);
-
-        // gettimeofday(&time_old, NULL);
         break;
     case ESP_SPP_CLOSE_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_CLOSE_EVT");
@@ -276,11 +267,6 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
             memcpy(&(buffer_data_received[len_buffer_data_received]), param->data_ind.data, param->data_ind.len);
             len_buffer_data_received += param->data_ind.len;
         }
-        // if (len_buffer_data_received >= 1919)
-        // {
-        //     ESP_LOGI(SPP_TAG, "cond signal");
-            // pthread_cond_signal(&thread_decoder.cond);
-        // }
         break;
     case ESP_SPP_CONG_EVT:
 #if (SPP_SHOW_MODE == SPP_SHOW_DATA)
@@ -378,9 +364,6 @@ void app_main(void)
         return;
     }
 
-    // data_received.buffer = (uint8_t *) malloc(3840 * sizeof(uint8_t));
-
-    // init_decoder(&data_received, 30);
     init_decoder(buffer_data_received, len_buffer_data_received);
 
     bt_spp_init();
