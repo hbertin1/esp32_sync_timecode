@@ -39,7 +39,7 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
-  include("/Users/hugo/Documents/cours/inge/esir2/Iot/Projet/examples/bt_spp_initiator/build/esp-idf/soc/esp32/cmake_install.cmake")
+  include("/Users/hugo/Documents/cours/inge/esir2/Iot/Projet/project/bt_spp_initiator/build/esp-idf/soc/esp32/cmake_install.cmake")
 
 endif()
 

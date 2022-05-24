@@ -1,4 +1,4 @@
-# Install script for directory: /Users/hugo/Documents/cours/inge/esir2/Iot/Projet/examples/bt_spp_acceptor/components/libltc
+# Install script for directory: /Users/hugo/Documents/cours/inge/esir2/Iot/Projet/project/bt_spp_acceptor/components/libltc
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

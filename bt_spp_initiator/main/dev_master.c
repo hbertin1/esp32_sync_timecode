@@ -1,11 +1,3 @@
-/*
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
 /****************************************************************************
  *
  * This file is for Classic Bluetooth device and service discovery Demo.
@@ -14,6 +6,8 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <pthread.h>
+#include <sys/time.h>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs.h"
@@ -27,11 +21,15 @@
 #include "esp_spp_api.h"
 
 #include "ltc.h"
-// #include "BluetoothSerial/src/BluetoothSerial.h"
+#include "timeCodeDec.h"
+#include "bt_devices_methods.h"
+#include "console.h"
 
 #define GAP_TAG "GAP"
 #define SPP_TAG "SPP"
 #define DEC_TAG "DEC"
+
+#define FPS 25
 
 esp_bd_addr_t peer_bd_addr = {0};
 static uint8_t peer_bdname_len;
@@ -47,147 +45,136 @@ static const uint8_t inq_num_rsps = 0;
 #define SPP_DATA_LEN ESP_SPP_MAX_MTU
 #endif
 static uint8_t spp_data[SPP_DATA_LEN];
-static uint8_t *buffer_data_reiceived[3*1920];
-static int len_buffer_data_reiceived = 0;
 
-static char *bda2str(esp_bd_addr_t bda, char *str, size_t size)
-{
-    if (bda == NULL || str == NULL || size < 18)
-    {
-        return NULL;
-    }
+static uint8_t buffer_data_received[3 * 1920];
+int len_buffer_data_received = 0;
 
-    uint8_t *p = bda;
-    sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x",
-            p[0], p[1], p[2], p[3], p[4], p[5]);
-    return str;
+void set_time(SMPTETimecode stime) 
+{   
+    struct tm secs;
+
+    secs.tm_year = 0;
+    secs.tm_mon = 0;
+    secs.tm_mday = 0;
+    secs.tm_hour = 0;
+    secs.tm_min = stime.mins;
+    secs.tm_sec = stime.secs;
+
+    struct timeval tv;
+    tv.tv_sec = stime.mins*60 + stime.secs;
+    
+    double msec = stime.frame * 1000.0 / FPS;
+    tv.tv_usec = msec * 1000;
+
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    latency.decoding_duration = now.tv_usec-latency.time_receiveLTC.tv_usec;
+
+    latency.sync_number++;
+    struct timeval v_m;
+    v_m.tv_usec = (latency.sum_time.tv_usec + ((tv.tv_usec - latency.time_send_request.tv_usec)/2))/latency.sync_number;
+    v_m.tv_usec += latency.encoding_duration + latency.decoding_duration;
+
+    struct timeval t_new;
+    t_new.tv_sec = tv.tv_sec;
+    t_new.tv_usec = tv.tv_usec + v_m.tv_usec;
+
+    ESP_LOGI(SPP_TAG, "v_m.tv_usec = %ld", v_m.tv_usec);
+
+    settimeofday(&t_new, DST_NONE);
 }
 
-static char *uuid2str(esp_bt_uuid_t *uuid, char *str, size_t size)
+void *decoder(void *p_data)
 {
-    if (uuid == NULL || str == NULL)
-    {
-        return NULL;
-    }
+    // struct data_received_t *data = p_data;
+    int apv = 1920;
+    ltcsnd_sample_t sound[1024];
+    size_t n;
+    long int total = 0;
 
-    if (uuid->len == 2 && size >= 5)
-    {
-        sprintf(str, "%04x", uuid->uuid.uuid16);
-    }
-    else if (uuid->len == 4 && size >= 9)
-    {
-        sprintf(str, "%08x", uuid->uuid.uuid32);
-    }
-    else if (uuid->len == 16 && size >= 37)
-    {
-        uint8_t *p = uuid->uuid.uuid128;
-        sprintf(str, "%02x%02x%02x%02x-%02x%02x-%02x%02x-%02x%02x-%02x%02x%02x%02x%02x%02x",
-                p[15], p[14], p[13], p[12], p[11], p[10], p[9], p[8],
-                p[7], p[6], p[5], p[4], p[3], p[2], p[1], p[0]);
-    }
-    else
-    {
-        return NULL;
-    }
+    LTCDecoder *decoder;
+    LTCFrameExt frame;
 
-    return str;
+    while (1)
+    {
+        decoder = ltc_decoder_create(apv, 32);
+        int index = 0;
+
+        pthread_mutex_lock(&thread_decoder.mutex);
+        ESP_LOGI(DEC_TAG, "aquire lock\n");
+        pthread_cond_wait(&thread_decoder.cond, &thread_decoder.mutex);
+        ESP_LOGI(DEC_TAG, "start thread\n");
+        // ESP_LOGI(DEC_TAG,"length data received = %d\n", ((data_received_t *) p_data)->length);
+        // decode(&(data_received.buffer), &(data_received.length));
+        // decode(buffer_data_received, len_buffer_data_received);
+
+        do
+        {
+            if (index + 1024 < len_buffer_data_received)
+                n = 1024;
+            else
+                n = len_buffer_data_received - index;
+            memcpy(sound, &(buffer_data_received[index]), n);
+            index += n;
+            ESP_LOGD(DEC_TAG, "n = %zu, buffer = %s", n, buffer_data_received);
+            ltc_decoder_write(decoder, sound, n, total);
+            while (ltc_decoder_read(decoder, &frame))
+            {
+                SMPTETimecode stime;
+                ltc_frame_to_time(&stime, &frame.ltc, 1);
+
+                // ESP_LOGI(DEC_TAG, "%04d-%02d-%02d %s ",
+                //          ((stime.years < 67) ? 2000 + stime.years : 1900 + stime.years),
+                //          stime.months,
+                //          stime.days,
+                //          stime.timezone);
+
+                // ESP_LOGI(DEC_TAG, "%02d:%02d:%02d%c%02d | %8lld %8lld%s\n",
+                //          stime.hours,
+                //          stime.mins,
+                //          stime.secs,
+                //          (frame.ltc.dfbit) ? '.' : ':',
+                //          stime.frame,
+                //          frame.off_start,
+                //          frame.off_end,
+                //          frame.reverse ? "  R" : "");
+
+                printf("mins: %02d, secs: %02d, frame: %02d\n", stime.mins, stime.secs, stime.frame);
+                set_time(stime);
+            }
+            total += n;
+        } while (n);
+        ltc_decoder_free(decoder);
+        len_buffer_data_received = 0;
+        pthread_mutex_unlock(&thread_decoder.mutex);
+        ESP_LOGI(DEC_TAG, "release lock\n");
+    }
 }
 
-static bool get_name_from_eir(uint8_t *eir, char *bdname, uint8_t *bdname_len)
+// int init_decoder(data_received_t * data_received, int * len_data_received)
+int init_decoder(uint8_t *buffer_data_received, int *len_buffer_data_received)
 {
-    uint8_t *rmt_bdname = NULL;
-    uint8_t rmt_bdname_len = 0;
+    int ret;
+    // ESP_LOGI(DEC_TAG,"data length received = %d\n", data_received->length);
 
-    if (!eir)
-    {
-        return false;
-    }
+    thread_decoder.mutex = PTHREAD_MUTEX_INITIALIZER,
+    thread_decoder.cond = PTHREAD_COND_INITIALIZER,
 
-    rmt_bdname = esp_bt_gap_resolve_eir_data(eir, ESP_BT_EIR_TYPE_CMPL_LOCAL_NAME, &rmt_bdname_len);
-    if (!rmt_bdname)
-    {
-        rmt_bdname = esp_bt_gap_resolve_eir_data(eir, ESP_BT_EIR_TYPE_SHORT_LOCAL_NAME, &rmt_bdname_len);
-    }
+    pthread_mutex_init(&thread_decoder.mutex, NULL);
+    pthread_cond_init(&thread_decoder.cond, NULL);
 
-    if (rmt_bdname)
-    {
-        if (rmt_bdname_len > ESP_BT_GAP_MAX_BDNAME_LEN)
-        {
-            rmt_bdname_len = ESP_BT_GAP_MAX_BDNAME_LEN;
-        }
+    // ret = pthread_create(&thread_decoder.thread, NULL, &decoder, data_received);
+    ret = pthread_create(&thread_decoder.thread, NULL, &decoder, NULL);
 
-        if (bdname)
-        {
-            memcpy(bdname, rmt_bdname, rmt_bdname_len);
-            bdname[rmt_bdname_len] = '\0';
-        }
-        if (bdname_len)
-        {
-            *bdname_len = rmt_bdname_len;
-        }
-        return true;
-    }
-
-    return false;
-}
-
-
-int decode(ltcsnd_sample_t *buffer, int len_buffer)
-{
-  int apv = 1920;
-  ltcsnd_sample_t sound[1024];
-  size_t n;
-  long int total = 0; // not sure to start at 0 here
-
-  LTCDecoder *decoder;
-  LTCFrameExt frame;
-
-  decoder = ltc_decoder_create(apv, 32);
-  uint8_t *end_buffer = buffer+len_buffer;
-
-  do
-  {
-    // n = fread(sound, sizeof(ltcsnd_sample_t), BUFFER_SIZE, f);
-    if(buffer+1024<end_buffer) n = 1024;
-    else n = end_buffer-buffer;
-    memcpy(sound, buffer, n);
-    buffer += n;
-    ESP_LOGI(DEC_TAG, "n = %zu, buffer = %s", n, buffer);
-    ltc_decoder_write(decoder, sound, n, total);
-    while (ltc_decoder_read(decoder, &frame))
-    {
-      SMPTETimecode stime;
-      ltc_frame_to_time(&stime, &frame.ltc, 1);
-
-      ESP_LOGI(DEC_TAG,"%04d-%02d-%02d %s ",
-                    ((stime.years < 67) ? 2000 + stime.years : 1900 + stime.years),
-                    stime.months,
-                    stime.days,
-                    stime.timezone);
-
-      ESP_LOGI(DEC_TAG,"%02d:%02d:%02d%c%02d | %8lld %8lld%s\n",
-                    stime.hours,
-                    stime.mins,
-                    stime.secs,
-                    (frame.ltc.dfbit) ? '.' : ':',
-                    stime.frame,
-                    frame.off_start,
-                    frame.off_end,
-                    frame.reverse ? "  R" : "");
-    }
-    total += n;
-  } while (n);
-  ltc_decoder_free(decoder);
-
-  return 0;
+    return ret;
 }
 
 static void esp_bt_gap_cb(esp_bt_gap_cb_event_t event, esp_bt_gap_cb_param_t *param)
 {
     switch (event)
     {
-    // Once the broadcast information is found, ESP_BT_GAP_DISC_RES_EVT is triggered. Then
-    // the device is connected.
+    /* Once the broadcast information is found, ESP_BT_GAP_DISC_RES_EVT is triggered. Then
+       the device is connected. */
     case ESP_BT_GAP_DISC_RES_EVT:
         ESP_LOGI(SPP_TAG, "ESP_BT_GAP_DISC_RES_EVT");
         esp_log_buffer_hex(SPP_TAG, param->disc_res.bda, ESP_BD_ADDR_LEN);
@@ -228,11 +215,11 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_INIT_EVT");
         esp_bt_gap_set_scan_mode(ESP_BT_CONNECTABLE, ESP_BT_GENERAL_DISCOVERABLE);
-        // Inquiry duration: 1.28 seconds unit
-        // Number of responses before the inquiry is halted (0 means unlimited)
-        // Maybe change it if the discovery is never stopping
+        /* Inquiry duration: 1.28 seconds unit
+            inq_num_rsps: Number of responses before the inquiry is halted (0 means unlimited) */
         esp_bt_gap_start_discovery(inq_mode, inq_len, inq_num_rsps);
         ESP_LOGI(SPP_TAG, "discovery started...");
+        latency.sync_number = 0;
         break;
     case ESP_SPP_DISCOVERY_COMP_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_DISCOVERY_COMP_EVT status=%d scn_num=%d", param->disc_comp.status, param->disc_comp.scn_num);
@@ -246,6 +233,7 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_OPEN_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_OPEN_EVT");
         esp_spp_write(param->srv_open.handle, SPP_DATA_LEN, spp_data);
+
         // gettimeofday(&time_old, NULL);
         break;
     case ESP_SPP_CLOSE_EVT:
@@ -257,22 +245,42 @@ static void esp_spp_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param)
     case ESP_SPP_CL_INIT_EVT:
         ESP_LOGI(SPP_TAG, "ESP_SPP_CL_INIT_EVT");
         break;
+    /* receive data event */
     case ESP_SPP_DATA_IND_EVT:
-        ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT");
-#if (SPP_SHOW_MODE == SPP_SHOW_DATA)
         ESP_LOGI(SPP_TAG, "ESP_SPP_DATA_IND_EVT len=%d handle=%d\n",
                  param->data_ind.len, param->data_ind.handle);
-        esp_log_buffer_hex("", param->data_ind.data, param->data_ind.len);
-        
-        //add reiceived data to the buffer in order to rebuild an entire encoded frame
-        memcpy(buffer_data_reiceived + len_buffer_data_reiceived, param->data_ind.data, param->data_ind.len);
-        len_buffer_data_reiceived += param->data_ind.len;
-        if(len_buffer_data_reiceived>=3838)
+        if (param->data_ind.len < 50)
         {
-            decode((unsigned char *) buffer_data_reiceived, len_buffer_data_reiceived);
-            len_buffer_data_reiceived = 0;
+            ESP_LOGI(SPP_TAG, "Data : %d\n",*(param->data_ind.data));
+            esp_log_buffer_char("", param->data_ind.data, param->data_ind.len);
+            if(*(param->data_ind.data) == START_RECV_LTC)
+            {
+                /* store the first LTC receiving time */
+                gettimeofday(&latency.time_receiveLTC, NULL);
+            }
+            else if(param->data_ind.data[0] == RECV_COMP) 
+            {
+                pthread_cond_signal(&thread_decoder.cond);
+
+                /* get the encoding duration sent */
+                uint16_t encoding_duration = 0;
+                encoding_duration = param->data_ind.data[1];
+                encoding_duration = encoding_duration + (param->data_ind.data[2]<<8);
+                latency.encoding_duration = encoding_duration;
+                ESP_LOGI(SPP_TAG, "encoding_duration = %u", latency.encoding_duration);
+            }
         }
-#endif
+        else
+        {
+            /* add reiceived data to the buffer in order to rebuild an entire encoded frame */
+            memcpy(&(buffer_data_received[len_buffer_data_received]), param->data_ind.data, param->data_ind.len);
+            len_buffer_data_received += param->data_ind.len;
+        }
+        // if (len_buffer_data_received >= 1919)
+        // {
+        //     ESP_LOGI(SPP_TAG, "cond signal");
+            // pthread_cond_signal(&thread_decoder.cond);
+        // }
         break;
     case ESP_SPP_CONG_EVT:
 #if (SPP_SHOW_MODE == SPP_SHOW_DATA)
@@ -318,14 +326,13 @@ void bt_spp_init(void)
         ESP_LOGE(SPP_TAG, "%s gap register failed\n", __func__);
         return;
     }
-    // Once the SPP callback has been registered, ESP_SPP_INIT_EVT is triggered.
+    /* Once the SPP callback has been registered, ESP_SPP_INIT_EVT is triggered. */
     if ((ret = esp_spp_register_callback(esp_spp_cb)) != ESP_OK)
     {
         ESP_LOGE(SPP_TAG, "%s spp register failed\n", __func__);
         return;
     }
 
-    // Maybe use VFS Mode
     if ((ret = esp_spp_init(ESP_SPP_MODE_CB)) != ESP_OK)
     {
         ESP_LOGE(SPP_TAG, "%s spp register failed\n", __func__);
@@ -371,10 +378,12 @@ void app_main(void)
         return;
     }
 
-    LTCEncoder *encoder;
+    // data_received.buffer = (uint8_t *) malloc(3840 * sizeof(uint8_t));
 
-    /* LTC encoder */
-    encoder = ltc_encoder_create(48000, 25, LTC_TV_625_50, LTC_USE_DATE);
+    // init_decoder(&data_received, 30);
+    init_decoder(buffer_data_received, len_buffer_data_received);
 
     bt_spp_init();
+
+    start_cli();
 }

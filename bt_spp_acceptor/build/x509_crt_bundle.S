@@ -1,4 +1,4 @@
-/* * Data converted from /Users/hugo/Documents/cours/inge/esir2/Iot/Projet/examples/bt_spp_acceptor/build/esp-idf/mbedtls/x509_crt_bundle
+/* * Data converted from /Users/hugo/Documents/cours/inge/esir2/Iot/Projet/project/bt_spp_acceptor/build/esp-idf/mbedtls/x509_crt_bundle
  */
 .data
 .section .rodata.embedded

@@ -40,24 +40,7 @@
 extern "C" {
 #endif
 
-#if defined _WIN32 && !defined(__LITTLE_ENDIAN__)
 #define __LITTLE_ENDIAN__
-#endif
-
-#ifdef __BIG_ENDIAN__
-# define LTC_BIG_ENDIAN
-#elif defined _BIG_ENDIAN
-# define LTC_BIG_ENDIAN
-#elif defined __BYTE_ORDER__
-# if __BYTE_ORDER__ ==  __ORDER_BIG_ENDIAN__
-#  define LTC_BIG_ENDIAN
-# endif
-#elif !defined __LITTLE_ENDIAN__
-# include <endian.h> // machine/endian.h
-# if (defined __BYTE_ORDER__ && defined __ORDER_BIG_ENDIAN__ && __BYTE_ORDER__ ==  __ORDER_BIG_ENDIAN__)
-#  define LTC_BIG_ENDIAN
-# endif
-#endif
 
 #include <stddef.h> /* size_t */
 

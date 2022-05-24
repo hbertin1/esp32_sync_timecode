@@ -1,4 +1,4 @@
-# Install script for directory: /Users/hugo/Documents/cours/inge/esir2/Iot/Projet/examples/bt_spp_initiator/main
+# Install script for directory: /Users/hugo/Documents/cours/inge/esir2/Iot/Projet/project/bt_spp_initiator/main
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)

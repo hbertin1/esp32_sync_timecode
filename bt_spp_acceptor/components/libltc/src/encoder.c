@@ -25,6 +25,7 @@
 
 #include "encoder.h"
 
+
 /**
  * add values to the output buffer
  */
@@ -102,6 +103,7 @@ int encode_byte(LTCEncoder *e, int byte, double speed) {
 			b >>= 1;
 		else
 			b <<= 1;
+
 	} while (b);
 
 	return err;

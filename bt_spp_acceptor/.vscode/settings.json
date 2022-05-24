@@ -1,6 +1,6 @@
 {
   "C_Cpp.intelliSenseEngine": "Tag Parser",
-  "idf.port": "/dev/cu.usbserial-1110",
+  "idf.port": "/dev/cu.SLAB_USBtoUART",
   "idf.flashType": "UART",
   "idf.adapterTargetName": "esp32",
   "files.associations": {
@@ -12,6 +12,14 @@
     "limits": "c",
     "array": "c",
     "string": "c",
-    "string_view": "c"
+    "string_view": "c",
+    "bitset": "c",
+    "cmath": "c",
+    "complex": "c",
+    "cstddef": "c",
+    "*.inc": "c",
+    "endian.h": "c",
+    "esp_bt.h": "c",
+    "time.h": "c"
   }
 }

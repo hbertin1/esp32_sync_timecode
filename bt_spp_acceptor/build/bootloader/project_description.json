@@ -1,8 +1,8 @@
 {
     "project_name":       "bootloader",
     "project_path":       "/Users/hugo/esp/esp-idf/components/bootloader/subproject",
-    "build_dir":          "/Users/hugo/Documents/cours/inge/esir2/Iot/Projet/examples/bt_spp_acceptor/build/bootloader",
-    "config_file":        "/Users/hugo/Documents/cours/inge/esir2/Iot/Projet/examples/bt_spp_acceptor/sdkconfig",
+    "build_dir":          "/Users/hugo/Documents/cours/inge/esir2/Iot/Projet/project/bt_spp_acceptor/build/bootloader",
+    "config_file":        "/Users/hugo/Documents/cours/inge/esir2/Iot/Projet/project/bt_spp_acceptor/sdkconfig",
     "config_defaults":    "",
     "app_elf":            "bootloader.elf",
     "app_bin":            "bootloader.bin",
