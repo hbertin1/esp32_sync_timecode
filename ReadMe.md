@@ -5,7 +5,7 @@
 
 ## overview
 This is a student project for the PRO-IOT Module at ESIR (2nd year, IoT Diploma).
-The goal of this project is to implement a solution to synchronize ESP32's clock in order to synchronize servers (the Microcontroller is acting as a key to transmit its clock). This synchronization needs to be made thanks to the Bluetooth Protocol.
+The goal of this project is to implement a solution to synchronize an ESP32's clock in order to synchronize servers (the Microcontroller is acting as a key to transmit its clock). This synchronization needs to be made thanks to the Bluetooth Protocol.
 
 **The report and the presentation can be found within the `./Rendu` folder**
 
